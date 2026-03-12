@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import re
 from collections import defaultdict
@@ -139,3 +140,36 @@ def build_json_payload(
 def write_json_report(output_path: Path, payload: dict[str, object]) -> None:
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
+
+def write_csv_report(output_path: Path, payload: dict[str, object]) -> None:
+    fieldnames = [
+        "data",
+        "municipio",
+        "fonte",
+        "titulo",
+        "link",
+        "resumo",
+        "classificacao",
+        "palavras_chave_detectadas",
+        "entidades_locais",
+        "eventos_problemas",
+    ]
+
+    with output_path.open("w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        for item in payload.get("news", []):
+            writer.writerow(
+                {
+                    "data": item.get("data", ""),
+                    "municipio": item.get("municipio", "") or "",
+                    "fonte": item.get("fonte", ""),
+                    "titulo": item.get("titulo", ""),
+                    "link": item.get("link", ""),
+                    "resumo": item.get("resumo", ""),
+                    "classificacao": item.get("classificacao", ""),
+                    "palavras_chave_detectadas": ", ".join(item.get("palavras_chave_detectadas", [])),
+                    "entidades_locais": ", ".join(item.get("entidades_locais", [])),
+                    "eventos_problemas": ", ".join(item.get("eventos_problemas", [])),
+                }
+            )

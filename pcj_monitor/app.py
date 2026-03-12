@@ -9,7 +9,7 @@ from .collector import choose_urls_for_run, collect_articles
 from .config import load_monitor_config, load_urls
 from .database import save_execution
 from .logging_utils import setup_logging
-from .reporting import build_json_payload, generate_docx_report, write_json_report
+from .reporting import build_json_payload, generate_docx_report, write_csv_report, write_json_report
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,6 +25,18 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def build_report_paths(output_dir: Path, report_date: str) -> tuple[Path, Path, Path]:
+    sequence = 1
+    while True:
+        suffix = f"{report_date}-{sequence}"
+        docx_path = output_dir / f"relatorio_pcj_{suffix}.docx"
+        json_path = output_dir / f"relatorio_pcj_{suffix}.json"
+        csv_path = output_dir / f"relatorio_pcj_{suffix}.csv"
+        if not any(path.exists() for path in (docx_path, json_path, csv_path)):
+            return docx_path, json_path, csv_path
+        sequence += 1
+
+
 def run() -> int:
     args = parse_args()
     urls_file = Path(args.urls_file)
@@ -33,48 +45,54 @@ def run() -> int:
     database_path = Path(args.database_path) if args.database_path else output_dir / "pcj_monitor.db"
 
     logger, log_path = setup_logging(output_dir)
-    config = load_monitor_config(args.config_file)
-    all_urls = load_urls(urls_file)
-    monitored_urls = choose_urls_for_run(all_urls, sample_size=args.sample_size, random_seed=args.random_seed)
+    try:
+        config = load_monitor_config(args.config_file)
+        all_urls = load_urls(urls_file)
+        monitored_urls = choose_urls_for_run(all_urls, sample_size=args.sample_size, random_seed=args.random_seed)
 
-    logger.info("Executando teste com %s de %s URL(s) cadastrada(s).", len(monitored_urls), len(all_urls))
-    if args.random_seed is not None:
-        logger.info("Random seed usada nesta execucao: %s", args.random_seed)
+        logger.info("Executando teste com %s de %s URL(s) cadastrada(s).", len(monitored_urls), len(all_urls))
+        if args.random_seed is not None:
+            logger.info("Random seed usada nesta execucao: %s", args.random_seed)
 
-    articles, source_stats = collect_articles(
-        monitored_urls=monitored_urls,
-        per_html_limit=args.per_html_limit,
-        recent_days=args.recent_days,
-        config=config,
-        logger=logger,
-    )
+        articles, source_stats = collect_articles(
+            monitored_urls=monitored_urls,
+            per_html_limit=args.per_html_limit,
+            recent_days=args.recent_days,
+            config=config,
+            logger=logger,
+        )
 
-    relevant = deduplicate(filter(None, (analyze_article(article, config) for article in articles)))
-    relevant = sorted(relevant, key=lambda item: sort_key(item, config))
-    generated_at = datetime.now(timezone.utc)
+        relevant = deduplicate(filter(None, (analyze_article(article, config) for article in articles)))
+        relevant = sorted(relevant, key=lambda item: sort_key(item, config))
+        generated_at = datetime.now(timezone.utc)
 
-    report_date = generated_at.strftime("%Y%m%d")
-    docx_path = output_dir / f"relatorio_pcj_{report_date}.docx"
-    json_path = output_dir / f"relatorio_pcj_{report_date}.json"
+        report_date = generated_at.strftime("%Y%m%d")
+        docx_path, json_path, csv_path = build_report_paths(output_dir, report_date)
 
-    generate_docx_report(relevant, generated_at, docx_path, config, source_stats)
-    payload = build_json_payload(relevant, generated_at, config, source_stats)
-    write_json_report(json_path, payload)
-    execution_id = save_execution(
-        database_path,
-        payload,
-        {
-            "urls_file": str(urls_file),
-            "output_dir": str(output_dir),
-            "sample_size": args.sample_size,
-            "random_seed": args.random_seed,
-            "recent_days": args.recent_days,
-            "per_html_limit": args.per_html_limit,
-        },
-    )
+        generate_docx_report(relevant, generated_at, docx_path, config, source_stats)
+        payload = build_json_payload(relevant, generated_at, config, source_stats)
+        write_json_report(json_path, payload)
+        write_csv_report(csv_path, payload)
+        execution_id = save_execution(
+            database_path,
+            payload,
+            {
+                "urls_file": str(urls_file),
+                "output_dir": str(output_dir),
+                "sample_size": args.sample_size,
+                "random_seed": args.random_seed,
+                "recent_days": args.recent_days,
+                "per_html_limit": args.per_html_limit,
+            },
+        )
+    except Exception:
+        logger.exception("Execucao interrompida por erro nao tratado.")
+        logger.info("Log da execucao: %s", log_path)
+        return 1
 
     logger.info("Relatorio DOCX: %s", docx_path)
     logger.info("Relatorio JSON: %s", json_path)
+    logger.info("Relatorio CSV: %s", csv_path)
     logger.info("Banco SQLite: %s", database_path)
     logger.info("Execution ID: %s", execution_id)
     logger.info("Log da execucao: %s", log_path)

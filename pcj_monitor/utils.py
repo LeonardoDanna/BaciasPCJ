@@ -5,7 +5,7 @@ import unicodedata
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse, urlsplit, urlunsplit
 
 
 class TextExtractor(HTMLParser):
@@ -46,6 +46,15 @@ def canonical_url(url: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/")
 
 
+def sanitize_url(url: str) -> str:
+    parts = urlsplit(url.strip())
+    netloc = parts.netloc.encode("idna").decode("ascii") if parts.netloc else ""
+    path = quote(parts.path or "/", safe="/%:@")
+    query = quote(parts.query, safe="=&?/%:+,;@")
+    fragment = quote(parts.fragment, safe="")
+    return urlunsplit((parts.scheme, netloc, path, query, fragment))
+
+
 def parse_date(raw: str | None, months_pt: dict[str, int]) -> datetime | None:
     if not raw:
         return None
@@ -70,14 +79,20 @@ def parse_date(raw: str | None, months_pt: dict[str, int]) -> datetime | None:
         month = months_pt.get(match.group(2))
         year = int(match.group(3))
         if month:
-            return datetime(year, month, day, tzinfo=timezone.utc)
+            try:
+                return datetime(year, month, day, tzinfo=timezone.utc)
+            except ValueError:
+                return None
 
     match = re.search(r"(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})", raw)
     if match:
         day, month, year = map(int, match.groups())
         if year < 100:
             year += 2000
-        return datetime(year, month, day, tzinfo=timezone.utc)
+        try:
+            return datetime(year, month, day, tzinfo=timezone.utc)
+        except ValueError:
+            return None
     return None
 
 
@@ -105,4 +120,3 @@ def summarize_text(text: str, max_sentences: int = 3) -> str:
     if not picked:
         picked = [cleaned[:360].rstrip() + ("..." if len(cleaned) > 360 else "")]
     return "\n".join(picked)
-

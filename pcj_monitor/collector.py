@@ -15,11 +15,25 @@ except ImportError:
 
 from .config import MonitorConfig
 from .models import Article
-from .utils import canonical_url, clean_spaces, is_recent, normalize_text, text_from_html
+from .utils import canonical_url, clean_spaces, is_recent, normalize_text, sanitize_url, text_from_html
+
+
+SKIP_LINK_PATTERNS = (
+    "/xmlrpc.php",
+    "/wp-json/",
+    "/wp-includes/",
+    "/comments/feed",
+    "/feed/",
+    "/favicon",
+    "/manifest.json",
+    "/cdn-cgi/",
+    "/apple-touch-icon",
+)
+SKIP_LINK_SUFFIXES = (".css", ".js", ".json", ".ico", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".xml")
 
 
 def fetch_url(url: str, config: MonitorConfig) -> tuple[str, str]:
-    request = Request(url, headers={"User-Agent": config.user_agent})
+    request = Request(sanitize_url(url), headers={"User-Agent": config.user_agent})
     with urlopen(request, timeout=config.default_timeout) as response:
         charset = response.headers.get_content_charset() or "utf-8"
         body = response.read().decode(charset, errors="replace")
@@ -148,6 +162,8 @@ def candidate_links_from_html(base_url: str, html: str, limit: int, config: Moni
                 continue
             if urlparse(base_url).netloc not in parsed.netloc:
                 continue
+            if should_skip_link(href):
+                continue
             anchor_text = clean_spaces(anchor.get_text(" ", strip=True))
             normalized = normalize_text(href + " " + anchor_text)
             if any(hint in href.lower() for hint in config.article_hints) or any(
@@ -157,7 +173,7 @@ def candidate_links_from_html(base_url: str, html: str, limit: int, config: Moni
     else:
         for match in re.finditer(r'href=["\'](.*?)["\']', html, re.I):
             href = urljoin(base_url, match.group(1))
-            if urlparse(base_url).netloc in urlparse(href).netloc:
+            if urlparse(base_url).netloc in urlparse(href).netloc and not should_skip_link(href):
                 links.append(href)
 
     deduped: list[str] = []
@@ -170,6 +186,13 @@ def candidate_links_from_html(base_url: str, html: str, limit: int, config: Moni
         if len(deduped) >= limit:
             break
     return deduped
+
+
+def should_skip_link(url: str) -> bool:
+    lowered = canonical_url(url).lower()
+    if any(pattern in lowered for pattern in SKIP_LINK_PATTERNS):
+        return True
+    return lowered.endswith(SKIP_LINK_SUFFIXES)
 
 
 def choose_urls_for_run(urls: list[str], sample_size: int | None, random_seed: int | None) -> list[str]:
@@ -246,4 +269,3 @@ def collect_articles(
             source_stat["error"] = str(exc)
         source_stats.append(source_stat)
     return collected, source_stats
-

@@ -2,7 +2,7 @@
 
 Monitoramento de noticias para protecao hidrica das Bacias PCJ.
 
-Projeto em Python para monitorar portais de noticias e feeds RSS, identificar eventos relevantes relacionados a gestao hidrica nas Bacias PCJ e gerar relatorios estruturados em `.docx`, `.json` e persistencia em `SQLite`.
+Projeto em Python para monitorar portais de noticias e feeds RSS, identificar eventos relevantes relacionados a gestao hidrica nas Bacias PCJ e gerar relatorios estruturados em `.docx`, `.json`, `.csv` e persistencia em `SQLite`.
 
 ## Objetivo
 
@@ -104,6 +104,7 @@ O modulo [reporting.py](/Users/leonardodanna/Documents/VS/baciasPCJ/pcj_monitor/
 
 - relatorio `.docx`
 - relatorio `.json`
+- relatorio `.csv`
 - destaque em negrito para termos importantes no documento
 - agrupamento por municipio
 - resumo consolidado da execucao
@@ -148,7 +149,7 @@ O arquivo [baciasPCJ.py](/Users/leonardodanna/Documents/VS/baciasPCJ/baciasPCJ.p
 7. Filtrar noticias fora do contexto hidrico.
 8. Gerar resumo automatico.
 9. Remover duplicatas.
-10. Gerar `.docx` e `.json`.
+10. Gerar `.docx`, `.json` e `.csv`.
 11. Persistir tudo no banco `SQLite`.
 12. Registrar a execucao em log.
 
@@ -166,6 +167,7 @@ Essa execucao:
 - testa 10 URLs aleatorias por vez
 - gera `.docx`
 - gera `.json`
+- gera `.csv`
 - grava no banco `SQLite`
 - cria log em arquivo
 
@@ -203,8 +205,9 @@ python3 baciasPCJ.py \
 
 Por padrao, na pasta [saida_pcj](/Users/leonardodanna/Documents/VS/baciasPCJ/saida_pcj):
 
-- `relatorio_pcj_YYYYMMDD.docx`
-- `relatorio_pcj_YYYYMMDD.json`
+- `relatorio_pcj_YYYYMMDD-N.docx`
+- `relatorio_pcj_YYYYMMDD-N.json`
+- `relatorio_pcj_YYYYMMDD-N.csv`
 - `pcj_monitor.db`
 - `logs/monitor_YYYYMMDD_HHMMSS.log`
 
