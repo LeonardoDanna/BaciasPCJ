@@ -1,5 +1,7 @@
 # Monitor de Noticias Hidricas - Bacias PCJ
 
+Monitoramento de noticias para protecao hidrica das Bacias PCJ.
+
 Projeto em Python para monitorar portais de noticias e feeds RSS, identificar eventos relevantes relacionados a gestao hidrica nas Bacias PCJ e gerar relatorios estruturados em `.docx`, `.json` e persistencia em `SQLite`.
 
 ## Objetivo
@@ -256,7 +258,7 @@ O log registra:
 - revisar periodicamente `defaults.json`
 - criar parsers especificos para portais importantes se a extracao generica comecar a falhar
 
-## Limitações atuais
+## Limitacoes atuais
 
 - a extracao HTML ainda e generica
 - o resumo e extrativo simples
