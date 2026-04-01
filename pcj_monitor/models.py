@@ -24,4 +24,5 @@ class RelevantNews:
     classificacao: str
     entidades_locais: list[str] = field(default_factory=list)
     eventos_problemas: list[str] = field(default_factory=list)
+    topico: int = -1  # Adicionado para BERTopic
 

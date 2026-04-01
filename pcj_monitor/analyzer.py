@@ -4,9 +4,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Iterable
 
-from .config import MonitorConfig
-from .models import Article, RelevantNews
-from .utils import canonical_url, normalize_text, parse_date, summarize_text
+from .topic_modeling import apply_bertopic_to_news
 
 
 def find_matches(text: str, keywords: Iterable[str]) -> list[str]:
@@ -79,6 +77,16 @@ def deduplicate(items: Iterable[RelevantNews]) -> list[RelevantNews]:
         seen.add(fingerprint)
         deduped.append(item)
     return deduped
+
+
+def apply_topics_to_news(
+    news_list: list[RelevantNews],
+) -> tuple[list[RelevantNews], dict, object]:
+    """
+    Aplica BERTopic às notícias para identificar tópicos.
+    Retorna a lista atualizada, o resumo dos tópicos e o modelo treinado.
+    """
+    return apply_bertopic_to_news(news_list)
 
 
 def sort_key(item: RelevantNews, config: MonitorConfig) -> tuple[int, datetime, str]:

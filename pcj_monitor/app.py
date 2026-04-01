@@ -4,12 +4,13 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .analyzer import analyze_article, deduplicate, sort_key
+from .analyzer import analyze_article, apply_topics_to_news, deduplicate, sort_key
 from .collector import choose_urls_for_run, collect_articles
 from .config import load_monitor_config, load_urls
 from .database import save_execution
 from .logging_utils import setup_logging
 from .reporting import build_json_payload, generate_docx_report, write_csv_report, write_json_report
+from .visualization import generate_html_dashboard
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,15 +26,16 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def build_report_paths(output_dir: Path, report_date: str) -> tuple[Path, Path, Path]:
+def build_report_paths(output_dir: Path, report_date: str) -> tuple[Path, Path, Path, Path]:
     sequence = 1
     while True:
         suffix = f"{report_date}-{sequence}"
         docx_path = output_dir / f"relatorio_pcj_{suffix}.docx"
         json_path = output_dir / f"relatorio_pcj_{suffix}.json"
         csv_path = output_dir / f"relatorio_pcj_{suffix}.csv"
-        if not any(path.exists() for path in (docx_path, json_path, csv_path)):
-            return docx_path, json_path, csv_path
+        html_path = output_dir / f"relatorio_pcj_{suffix}.html"
+        if not any(path.exists() for path in (docx_path, json_path, csv_path, html_path)):
+            return docx_path, json_path, csv_path, html_path
         sequence += 1
 
 
@@ -63,16 +65,25 @@ def run() -> int:
         )
 
         relevant = deduplicate(filter(None, (analyze_article(article, config) for article in articles)))
+        relevant, topic_summary, bertopic_model = apply_topics_to_news(relevant)
         relevant = sorted(relevant, key=lambda item: sort_key(item, config))
         generated_at = datetime.now(timezone.utc)
 
         report_date = generated_at.strftime("%Y%m%d")
-        docx_path, json_path, csv_path = build_report_paths(output_dir, report_date)
+        docx_path, json_path, csv_path, html_path = build_report_paths(output_dir, report_date)
 
-        generate_docx_report(relevant, generated_at, docx_path, config, source_stats)
-        payload = build_json_payload(relevant, generated_at, config, source_stats)
+        generate_docx_report(relevant, generated_at, docx_path, config, source_stats, topic_summary)
+        payload = build_json_payload(relevant, generated_at, config, source_stats, topic_summary)
         write_json_report(json_path, payload)
         write_csv_report(csv_path, payload)
+        generate_html_dashboard(
+            news_list=relevant,
+            topic_summary=topic_summary,
+            source_stats=source_stats,
+            generated_at=generated_at,
+            output_path=html_path,
+            bertopic_model=bertopic_model,
+        )
         execution_id = save_execution(
             database_path,
             payload,
@@ -93,6 +104,7 @@ def run() -> int:
     logger.info("Relatorio DOCX: %s", docx_path)
     logger.info("Relatorio JSON: %s", json_path)
     logger.info("Relatorio CSV: %s", csv_path)
+    logger.info("Dashboard HTML: %s", html_path)
     logger.info("Banco SQLite: %s", database_path)
     logger.info("Execution ID: %s", execution_id)
     logger.info("Log da execucao: %s", log_path)

@@ -55,6 +55,7 @@ def generate_docx_report(
     output_path: Path,
     config: MonitorConfig,
     source_stats: list[dict[str, object]],
+    topic_summary: dict | None = None,
 ) -> None:
     if Document is None:
         raise RuntimeError(
@@ -78,6 +79,16 @@ def generate_docx_report(
     for line in build_daily_summary(items, config).splitlines():
         paragraph = document.add_paragraph(style="List Bullet")
         add_highlighted_text(paragraph, line, {"Alta", "Media", "Baixa"} | config.keywords_b | config.keywords_a)
+
+    if topic_summary and topic_summary.get('total_topics', 0) > 0:
+        document.add_heading("Análise de Tópicos (BERTopic)", level=1)
+        document.add_paragraph(f"Total de tópicos identificados: {topic_summary['total_topics']}")
+        for topic in topic_summary['topics']:
+            document.add_heading(f"Tópico {topic['topic_id']}: {topic['name']}", level=2)
+            p = document.add_paragraph()
+            add_bold_label(p, "Contagem: ", str(topic['count']))
+            p = document.add_paragraph()
+            add_bold_label(p, "Palavras principais: ", ", ".join(topic['representation'][:10]))
 
     document.add_heading("Execucao", level=1)
     success_count = sum(1 for stat in source_stats if str(stat.get("status", "")).startswith(("feed", "portal", "artigo")))
@@ -127,6 +138,7 @@ def build_json_payload(
     generated_at: datetime,
     config: MonitorConfig,
     source_stats: list[dict[str, object]],
+    topic_summary: dict | None = None,
 ) -> dict[str, object]:
     return {
         "generated_at": generated_at.isoformat(),
@@ -134,6 +146,7 @@ def build_json_payload(
         "total_relevant_news": len(items),
         "source_stats": source_stats,
         "news": [asdict(item) for item in items],
+        "topic_summary": topic_summary or {},
     }
 
 
@@ -153,6 +166,7 @@ def write_csv_report(output_path: Path, payload: dict[str, object]) -> None:
         "palavras_chave_detectadas",
         "entidades_locais",
         "eventos_problemas",
+        "topico",
     ]
 
     with output_path.open("w", encoding="utf-8", newline="") as csv_file:
@@ -171,5 +185,6 @@ def write_csv_report(output_path: Path, payload: dict[str, object]) -> None:
                     "palavras_chave_detectadas": ", ".join(item.get("palavras_chave_detectadas", [])),
                     "entidades_locais": ", ".join(item.get("entidades_locais", [])),
                     "eventos_problemas": ", ".join(item.get("eventos_problemas", [])),
+                    "topico": item.get("topico", -1),
                 }
             )
