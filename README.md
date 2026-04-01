@@ -131,3 +131,6 @@ SELECT url, status, articles_found FROM source_stats ORDER BY id DESC LIMIT 20;
 - Resumo extrativo simples (primeiras 3 frases)
 - Identificação de município depende de menção textual explícita
 - Deduplicação por título + URL (duplicatas com URLs diferentes passam)
+
+[Teste do dia 01.04 - Scrapping e BERTopic.pdf](https://github.com/user-attachments/files/26421291/Teste.do.dia.01.04.-.Scrapping.e.BERTopic.pdf)
+
