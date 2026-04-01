@@ -4,7 +4,10 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Iterable
 
+from .config import MonitorConfig
+from .models import Article, RelevantNews
 from .topic_modeling import apply_bertopic_to_news
+from .utils import canonical_url, normalize_text, parse_date, summarize_text
 
 
 def find_matches(text: str, keywords: Iterable[str]) -> list[str]:

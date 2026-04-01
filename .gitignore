@@ -10,6 +10,8 @@ saida_pcj/
 !saida_pcj/
 saida_pcj/*.docx
 saida_pcj/*.json
+saida_pcj/*.csv
+saida_pcj/*.html
 saida_pcj/*.md
 saida_pcj/*.db
 saida_pcj/logs/
